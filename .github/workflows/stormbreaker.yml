@@ -46,11 +46,11 @@ jobs:
           export CROSS_COMPILE=aarch64-linux-android-
           export CROSS_COMPILE_ARM32=arm-linux-androideabi-
 
-          export KCFLAGS="-Wno-error -Wno-unused-variable -Wno-unused-function"
-          export KCPPFLAGS="-Wno-error"
+          # Flag kompilasi longgar agar Clang mengabaikan warning format/pointer di folder drivers
+          export KCFLAGS="-w -Wno-error -Wno-initializer-overrides -Wno-format -Wno-unused-variable -Wno-unused-function"
+          export KCPPFLAGS="-w -Wno-error"
 
           echo "--> Restoring clean taskstats.c..."
-          # Mengganti taskstats.c dengan versi bersih resmi Linux kernel 4.19
           curl -sSL "https://raw.githubusercontent.com/torvalds/linux/v4.19/kernel/taskstats.c" -o kernel/taskstats.c
 
           echo "--> Cleaning directory..."
@@ -65,7 +65,7 @@ jobs:
           fi
 
           echo "--> Compiling kernel..."
-          make -j$(nproc --all) O=out KCFLAGS="$KCFLAGS" KCPPFLAGS="$KCPPFLAGS"
+          make -j$(nproc --all) O=out KCFLAGS="$KCFLAGS" KCPPFLAGS="$KCPPFLAGS" || make -j1 O=out KCFLAGS="$KCFLAGS" KCPPFLAGS="$KCPPFLAGS"
 
       - name: Package AnyKernel3 for Redmi 9T
         run: |

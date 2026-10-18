@@ -1,109 +1,44 @@
-name: Build Pure Stormbreaker Kernel Redmi 9T
+name: Build Stormbreaker Kernel
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
+      - master
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     steps:
-      - name: Checkout Workflow Repository
+      - name: Checkout Source Code
         uses: actions/checkout@v4
 
-      - name: Install Dependencies
+      - name: Set Up Build Tools
         run: |
-          sudo apt-get update && sudo apt-get install -y \
-          bc build-essential ccache curl git libncurses5-dev libssl-dev \
-          python3 zip zlib1g-dev libstdc++6 bison flex libelf-dev python2-minimal || true
+          sudo apt-get update
+          sudo apt-get install -y build-essential bc bison flex libssl-dev libncurses5-dev libncursesw5-dev libelf-dev clang lld llvm git zip unshield
 
-          # Memastikan python2 tersedia untuk mkdtboimg / dtbo
-          if ! command -v python2 &> /dev/null; then
-              sudo ln -sf $(which python3) /usr/bin/python2
-          fi
-
-      - name: Clone Pure Kernel Source, Toolchains & AnyKernel3
+      - name: Build Kernel
         run: |
-          # 1. Clone Source Code Murni Kernel Stormbreaker
-          git clone https://github.com/stormbreaker-project/kernel_poco_citrus.git kernel
-          
-          # 2. Clone Toolchains (Proton Clang & GCC Cross-Compilers)
-          git clone https://github.com/kdrag0n/proton-clang.git --depth=1 clang
-          git clone https://github.com/LineageOS/android_prebuilts_gcc_linux-x86_aarch64_aarch64-linux-android-4.9.git --depth=1 gcc64
-          git clone https://github.com/LineageOS/android_prebuilts_gcc_linux-x86_arm_arm-linux-androideabi-4.9.git --depth=1 gcc32
-          
-          # 3. Clone AnyKernel3 Standar
-          git clone https://github.com/osm0sis/AnyKernel3.git -b master AnyKernel
-
-      - name: Start Kernel Compilation
-        run: |
-          cd kernel
-
-          # Mendaftarkan Clang & GCC ke Environment PATH
-          export TC_DIR=$(pwd)/../clang
-          export GCC64_DIR=$(pwd)/../gcc64
-          export GCC32_DIR=$(pwd)/../gcc32
-          export PATH="$TC_DIR/bin:$GCC64_DIR/bin:$GCC32_DIR/bin:$PATH"
-
           export ARCH=arm64
           export SUBARCH=arm64
-          export CC=clang
-          export CLANG_TRIPLE=aarch64-linux-gnu-
-          export CROSS_COMPILE=aarch64-linux-android-
-          export CROSS_COMPILE_ARM32=arm-linux-androideabi-
-
-          export KCFLAGS="-w -Wno-error -Wno-everything"
-          export KCPPFLAGS="-w -Wno-error -Wno-everything"
-
-          echo "--> Restoring clean taskstats.c..."
-          curl -sSL "https://raw.githubusercontent.com/torvalds/linux/v4.19/kernel/taskstats.c" -o kernel/taskstats.c
-
-          echo "--> Creating dummy firmware include files for Focaltech FT8719..."
-          mkdir -p include/firmware
-          mkdir -p drivers/input/touchscreen/FT8719/include/firmware
-          mkdir -p drivers/input/touchscreen/FT8719/include
           
-          # Mengisi file dummy dengan array C yang valid
-          echo "static unsigned char fts_fw_data[] = {0x00};" > include/firmware/fw_sample.i
-          echo "static unsigned char fts_fw_data[] = {0x00};" > drivers/input/touchscreen/FT8719/include/firmware/fw_sample.i
-          echo "static unsigned char fts_fw_data[] = {0x00};" > drivers/input/touchscreen/FT8719/include/fw_sample.i
+          # 1. Load Defconfig bawaan Stormbreaker
+          make O=out ARCH=arm64 vendor/lime_defconfig
 
-          echo "--> Cleaning directory..."
-          make mrproper || true
-          rm -rf out
+          # 2. Matikan fitur upgrade firmware Focaltech agar tidak memanggil fw_sample.i
+          scripts/config --file out/.config --disable CONFIG_TOUCHSCREEN_FOCALTECH_UPGRADE_FIRMWARE
+          scripts/config --file out/.config --disable CONFIG_TOUCHSCREEN_FOCALTECH_FIRMWARE_UPGRADE
 
-          echo "--> Generating defconfig..."
-          if [ -f "arch/arm64/configs/vendor/lime-perf_defconfig" ]; then
-              make O=out vendor/lime-perf_defconfig
-          else
-              make O=out vendor/bengal-perf_defconfig
-          fi
+          # 3. Jalankan Kompilasi Murni
+          make -j$(nproc --all) O=out ARCH=arm64 CC=clang CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-android-
 
-          echo "--> Disabling WERROR..."
-          sed -i 's/CONFIG_WERROR=y/# CONFIG_WERROR is not set/g' out/.config || true
-
-          echo "--> Compiling kernel..."
-          make -j$(nproc --all) O=out KCFLAGS="$KCFLAGS" KCPPFLAGS="$KCPPFLAGS"
-
-      - name: Package AnyKernel3 for Redmi 9T
-        run: |
-          if [ -f "kernel/out/arch/arm64/boot/Image.gz-dtb" ]; then
-              cp kernel/out/arch/arm64/boot/Image.gz-dtb AnyKernel/
-          elif [ -f "kernel/out/arch/arm64/boot/Image.gz" ]; then
-              cp kernel/out/arch/arm64/boot/Image.gz AnyKernel/
-          fi
-
-          cd AnyKernel
-          
-          # Penyesuaian nama perangkat AnyKernel3 agar mendukung Redmi 9T (lime)
-          sed -i 's/device.name1=.*/device.name1=lime/g' anykernel.sh
-          sed -i 's/device.name2=.*/device.name2=citrus/g' anykernel.sh
-          sed -i 's/device.name3=.*/device.name3=chime/g' anykernel.sh
-          sed -i 's/device.name4=.*/device.name4=juice/g' anykernel.sh
-
-          zip -r9 Stormbreaker-Pure-Lime-$(date +%Y%m%d).zip * -x .git README.md
-
-      - name: Upload Kernel Artifact
+      - name: Upload Kernel Output
         uses: actions/upload-artifact@v4
         with:
-          name: Stormbreaker-Pure-Kernel-Redmi9T
-          path: AnyKernel/Stormbreaker-Pure-Lime-*.zip
+          name: Stormbreaker-Kernel
+          path: |
+            out/arch/arm64/boot/Image.gz-dtb
+            out/arch/arm64/boot/Image.gz
+            out/arch/arm64/boot/dtbo.img

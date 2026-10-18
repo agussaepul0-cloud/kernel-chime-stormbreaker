@@ -31,7 +31,6 @@ jobs:
 
       - name: Start Kernel Compilation
         run: |
-          # Masuk ke direktori kernel
           cd kernel
 
           # Mendaftarkan Clang & GCC ke Environment PATH
@@ -50,9 +49,9 @@ jobs:
           export KCFLAGS="-Wno-error -Wno-unused-variable -Wno-unused-function"
           export KCPPFLAGS="-Wno-error"
 
-          echo "--> Fixing taskstats.c syntax error..."
-          # Menghapus/memperbaiki sintaks #elif tanpa ekspresi di kernel/taskstats.c
-          sed -i 's/^#elif$/#endif/g' kernel/taskstats.c
+          echo "--> Restoring clean taskstats.c..."
+          # Mengganti taskstats.c dengan versi bersih resmi Linux kernel 4.19
+          curl -sSL "https://raw.githubusercontent.com/torvalds/linux/v4.19/kernel/taskstats.c" -o kernel/taskstats.c
 
           echo "--> Cleaning directory..."
           make mrproper || true

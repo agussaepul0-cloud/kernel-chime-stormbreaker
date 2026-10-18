@@ -14,7 +14,12 @@ jobs:
         run: |
           sudo apt-get update && sudo apt-get install -y \
           bc build-essential ccache curl git libncurses5-dev libssl-dev \
-          python3 zip zlib1g-dev libstdc++6 bison flex libelf-dev
+          python3 zip zlib1g-dev libstdc++6 bison flex libelf-dev python2-minimal || true
+
+          # Memastikan python2 tersedia untuk mkdtboimg / dtbo
+          if ! command -v python2 &> /dev/null; then
+              sudo ln -sf $(which python3) /usr/bin/python2
+          fi
 
       - name: Clone Pure Kernel Source, Toolchains & AnyKernel3
         run: |
@@ -52,9 +57,11 @@ jobs:
           echo "--> Restoring clean taskstats.c..."
           curl -sSL "https://raw.githubusercontent.com/torvalds/linux/v4.19/kernel/taskstats.c" -o kernel/taskstats.c
 
-          echo "--> Fixing missing FT8719 firmware include file..."
+          echo "--> Fixing missing FT8719 firmware include files..."
           mkdir -p include/firmware
+          mkdir -p drivers/input/touchscreen/FT8719/include/firmware
           touch include/firmware/fw_sample.i
+          touch drivers/input/touchscreen/FT8719/include/firmware/fw_sample.i
 
           echo "--> Cleaning directory..."
           make mrproper || true

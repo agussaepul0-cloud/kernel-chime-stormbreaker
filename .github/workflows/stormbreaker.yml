@@ -57,11 +57,15 @@ jobs:
           echo "--> Restoring clean taskstats.c..."
           curl -sSL "https://raw.githubusercontent.com/torvalds/linux/v4.19/kernel/taskstats.c" -o kernel/taskstats.c
 
-          echo "--> Fixing missing FT8719 firmware include files..."
+          echo "--> Creating dummy firmware include files for Focaltech FT8719..."
           mkdir -p include/firmware
           mkdir -p drivers/input/touchscreen/FT8719/include/firmware
-          touch include/firmware/fw_sample.i
-          touch drivers/input/touchscreen/FT8719/include/firmware/fw_sample.i
+          mkdir -p drivers/input/touchscreen/FT8719/include
+          
+          # Mengisi file dummy dengan array C yang valid
+          echo "static unsigned char fts_fw_data[] = {0x00};" > include/firmware/fw_sample.i
+          echo "static unsigned char fts_fw_data[] = {0x00};" > drivers/input/touchscreen/FT8719/include/firmware/fw_sample.i
+          echo "static unsigned char fts_fw_data[] = {0x00};" > drivers/input/touchscreen/FT8719/include/fw_sample.i
 
           echo "--> Cleaning directory..."
           make mrproper || true

@@ -1,4 +1,4 @@
-name: Build Pure Stormbreaker Kernel
+name: Build Stormbreaker Kernel for Redmi 9T
 
 on:
   workflow_dispatch:
@@ -7,7 +7,7 @@ jobs:
   build:
     runs-on: ubuntu-22.04
     steps:
-      - name: Checkout Repository
+      - name: Checkout Kernel Source
         uses: actions/checkout@v4
 
       - name: Install Dependencies
@@ -42,7 +42,6 @@ jobs:
           export CROSS_COMPILE=aarch64-linux-android-
           export CROSS_COMPILE_ARM32=arm-linux-androideabi-
 
-          # Flag standar untuk pencegahan error warning bawaan
           export KCFLAGS="-Wno-error -Wno-unused-variable -Wno-unused-function"
           export KCPPFLAGS="-Wno-error"
 
@@ -50,8 +49,9 @@ jobs:
           make mrproper || true
           rm -rf out
 
-          echo "--> Generating defconfig..."
-          make O=out vendor/bengal-perf_defconfig
+          echo "--> Generating defconfig (lime-perf_defconfig)..."
+          # Menggunakan lime-perf_defconfig karena khusus untuk Redmi 9T (lime)
+          make O=out vendor/lime-perf_defconfig
 
           echo "--> Compiling kernel..."
           make -j$(nproc --all) O=out KCFLAGS="$KCFLAGS" KCPPFLAGS="$KCPPFLAGS"
@@ -66,7 +66,7 @@ jobs:
 
           cd AnyKernel
           
-          # Penyesuaian nama perangkat AnyKernel3 agar bisa di-flash di Redmi 9T
+          # Penyesuaian AnyKernel3 agar mendukung Redmi 9T (lime)
           sed -i 's/device.name1=.*/device.name1=lime/g' anykernel.sh
           sed -i 's/device.name2=.*/device.name2=citrus/g' anykernel.sh
           sed -i 's/device.name3=.*/device.name3=chime/g' anykernel.sh

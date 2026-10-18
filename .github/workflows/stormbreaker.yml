@@ -46,12 +46,15 @@ jobs:
           export CROSS_COMPILE=aarch64-linux-android-
           export CROSS_COMPILE_ARM32=arm-linux-androideabi-
 
-          # Flag longgar total untuk mengabaikan seluruh warning/format error di driver
           export KCFLAGS="-w -Wno-error -Wno-everything"
           export KCPPFLAGS="-w -Wno-error -Wno-everything"
 
           echo "--> Restoring clean taskstats.c..."
           curl -sSL "https://raw.githubusercontent.com/torvalds/linux/v4.19/kernel/taskstats.c" -o kernel/taskstats.c
+
+          echo "--> Fixing missing FT8719 firmware include file..."
+          mkdir -p include/firmware
+          touch include/firmware/fw_sample.i
 
           echo "--> Cleaning directory..."
           make mrproper || true
@@ -64,7 +67,7 @@ jobs:
               make O=out vendor/bengal-perf_defconfig
           fi
 
-          echo "--> Disabling CONFIG_WARN_ALL & Strict Warnings in Kconfig..."
+          echo "--> Disabling WERROR..."
           sed -i 's/CONFIG_WERROR=y/# CONFIG_WERROR is not set/g' out/.config || true
 
           echo "--> Compiling kernel..."

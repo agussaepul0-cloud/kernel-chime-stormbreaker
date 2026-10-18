@@ -18,7 +18,7 @@ jobs:
 
       - name: Clone Pure Kernel Source, Toolchains & AnyKernel3
         run: |
-          # 1. Clone Source Code Murni Kernel Stormbreaker (tanpa parameter branch agar otomatis pakai default branch)
+          # 1. Clone Source Code Murni Kernel Stormbreaker
           git clone https://github.com/stormbreaker-project/kernel_poco_citrus.git kernel
           
           # 2. Clone Toolchains (Proton Clang & GCC Cross-Compilers)
@@ -31,7 +31,7 @@ jobs:
 
       - name: Start Kernel Compilation
         run: |
-          # Masuk ke direktori kernel agar Makefile ditemukan
+          # Masuk ke direktori kernel
           cd kernel
 
           # Mendaftarkan Clang & GCC ke Environment PATH
@@ -49,6 +49,10 @@ jobs:
 
           export KCFLAGS="-Wno-error -Wno-unused-variable -Wno-unused-function"
           export KCPPFLAGS="-Wno-error"
+
+          echo "--> Fixing taskstats.c syntax error..."
+          # Menghapus/memperbaiki sintaks #elif tanpa ekspresi di kernel/taskstats.c
+          sed -i 's/^#elif$/#endif/g' kernel/taskstats.c
 
           echo "--> Cleaning directory..."
           make mrproper || true

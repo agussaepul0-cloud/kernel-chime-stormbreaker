@@ -1,4 +1,4 @@
-name: Build Stormbreaker Kernel for Redmi 9T
+name: Build Pure Stormbreaker Kernel Redmi 9T
 
 on:
   workflow_dispatch:
@@ -7,7 +7,7 @@ jobs:
   build:
     runs-on: ubuntu-22.04
     steps:
-      - name: Checkout Kernel Source
+      - name: Checkout Workflow Repository
         uses: actions/checkout@v4
 
       - name: Install Dependencies
@@ -16,23 +16,28 @@ jobs:
           bc build-essential ccache curl git libncurses5-dev libssl-dev \
           python3 zip zlib1g-dev libstdc++6 bison flex libelf-dev
 
-      - name: Clone Toolchains & AnyKernel3
+      - name: Clone Pure Kernel Source, Toolchains & AnyKernel3
         run: |
-          # Download Proton Clang Toolchain
-          git clone https://github.com/kdrag0n/proton-clang.git --depth=1 clang
+          # 1. Clone Source Code Murni Kernel Stormbreaker (tanpa parameter branch agar otomatis pakai default branch)
+          git clone https://github.com/stormbreaker-project/kernel_poco_citrus.git kernel
           
-          # Download GCC Cross-Compilers (AArch64 & ARM32)
+          # 2. Clone Toolchains (Proton Clang & GCC Cross-Compilers)
+          git clone https://github.com/kdrag0n/proton-clang.git --depth=1 clang
           git clone https://github.com/LineageOS/android_prebuilts_gcc_linux-x86_aarch64_aarch64-linux-android-4.9.git --depth=1 gcc64
           git clone https://github.com/LineageOS/android_prebuilts_gcc_linux-x86_arm_arm-linux-androideabi-4.9.git --depth=1 gcc32
           
-          # Download AnyKernel3
+          # 3. Clone AnyKernel3 Standar
           git clone https://github.com/osm0sis/AnyKernel3.git -b master AnyKernel
 
       - name: Start Kernel Compilation
         run: |
-          export TC_DIR=$(pwd)/clang
-          export GCC64_DIR=$(pwd)/gcc64
-          export GCC32_DIR=$(pwd)/gcc32
+          # Masuk ke direktori kernel agar Makefile ditemukan
+          cd kernel
+
+          # Mendaftarkan Clang & GCC ke Environment PATH
+          export TC_DIR=$(pwd)/../clang
+          export GCC64_DIR=$(pwd)/../gcc64
+          export GCC32_DIR=$(pwd)/../gcc32
           export PATH="$TC_DIR/bin:$GCC64_DIR/bin:$GCC32_DIR/bin:$PATH"
 
           export ARCH=arm64
@@ -49,33 +54,36 @@ jobs:
           make mrproper || true
           rm -rf out
 
-          echo "--> Generating defconfig (lime-perf_defconfig)..."
-          # Menggunakan lime-perf_defconfig karena khusus untuk Redmi 9T (lime)
-          make O=out vendor/lime-perf_defconfig
+          echo "--> Generating defconfig..."
+          if [ -f "arch/arm64/configs/vendor/lime-perf_defconfig" ]; then
+              make O=out vendor/lime-perf_defconfig
+          else
+              make O=out vendor/bengal-perf_defconfig
+          fi
 
           echo "--> Compiling kernel..."
           make -j$(nproc --all) O=out KCFLAGS="$KCFLAGS" KCPPFLAGS="$KCPPFLAGS"
 
       - name: Package AnyKernel3 for Redmi 9T
         run: |
-          if [ -f "out/arch/arm64/boot/Image.gz-dtb" ]; then
-              cp out/arch/arm64/boot/Image.gz-dtb AnyKernel/
-          elif [ -f "out/arch/arm64/boot/Image.gz" ]; then
-              cp out/arch/arm64/boot/Image.gz AnyKernel/
+          if [ -f "kernel/out/arch/arm64/boot/Image.gz-dtb" ]; then
+              cp kernel/out/arch/arm64/boot/Image.gz-dtb AnyKernel/
+          elif [ -f "kernel/out/arch/arm64/boot/Image.gz" ]; then
+              cp kernel/out/arch/arm64/boot/Image.gz AnyKernel/
           fi
 
           cd AnyKernel
           
-          # Penyesuaian AnyKernel3 agar mendukung Redmi 9T (lime)
+          # Penyesuaian nama perangkat AnyKernel3 agar mendukung Redmi 9T (lime)
           sed -i 's/device.name1=.*/device.name1=lime/g' anykernel.sh
           sed -i 's/device.name2=.*/device.name2=citrus/g' anykernel.sh
           sed -i 's/device.name3=.*/device.name3=chime/g' anykernel.sh
           sed -i 's/device.name4=.*/device.name4=juice/g' anykernel.sh
 
-          zip -r9 Stormbreaker-Lime-$(date +%Y%m%d).zip * -x .git README.md
+          zip -r9 Stormbreaker-Pure-Lime-$(date +%Y%m%d).zip * -x .git README.md
 
       - name: Upload Kernel Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Stormbreaker-Kernel-Redmi9T
-          path: AnyKernel/Stormbreaker-Lime-*.zip
+          name: Stormbreaker-Pure-Kernel-Redmi9T
+          path: AnyKernel/Stormbreaker-Pure-Lime-*.zip
